@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — {{ brand_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <header class="topbar">
+    <a href="{{ url_for('index') }}" class="wordmark">
+      <span class="wordmark-bars"></span>
+      ADMIN
+      <span class="wordmark-bars"></span>
+    </a>
+    <a href="{{ url_for('admin_logout') }}" class="cart-toggle">LOG OUT</a>
+  </header>
+
+  <main class="admin-main">
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-box">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="admin-section">
+      <h1 class="admin-heading">Add a new piece</h1>
+      <form method="POST" action="{{ url_for('add_product') }}" enctype="multipart/form-data" class="product-form">
+        <div class="form-row">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" placeholder="e.g. Varsity Bomber Jacket" required>
+        </div>
+        <div class="form-row">
+          <label for="price">Price (GHS)</label>
+          <input type="number" id="price" name="price" step="0.01" min="0" placeholder="e.g. 250" required>
+        </div>
+        <div class="form-row">
+          <label for="description">Description (optional)</label>
+          <textarea id="description" name="description" rows="3" placeholder="Sizes available, material, fit notes..."></textarea>
+        </div>
+        <div class="form-row">
+          <label for="image">Photo</label>
+          <input type="file" id="image" name="image" accept="image/png, image/jpeg, image/webp, image/gif">
+        </div>
+        <button type="submit" class="admin-submit">ADD TO STORE</button>
+      </form>
+    </section>
+
+    <section class="admin-section">
+      <h1 class="admin-heading">Your pieces ({{ products|length }})</h1>
+
+      {% if products|length == 0 %}
+        <p class="empty-sub">Nothing added yet. Use the form above to add your first item.</p>
+      {% else %}
+        <div class="admin-product-list">
+          {% for product in products %}
+          <div class="admin-product-row">
+            <div class="admin-product-thumb">
+              {% if product.image_url %}
+                <img src="{{ product.image_url }}" alt="{{ product.name }}">
+              {% else %}
+                <div class="no-image small">NO IMAGE</div>
+              {% endif %}
+            </div>
+
+            <form method="POST" action="{{ url_for('edit_product', product_id=product.id) }}" enctype="multipart/form-data" class="admin-edit-form">
+              <input type="text" name="name" value="{{ product.name }}" required>
+              <input type="number" name="price" value="{{ product.price }}" step="0.01" min="0" required>
+              <textarea name="description" rows="2">{{ product.description or '' }}</textarea>
+              <input type="file" name="image" accept="image/png, image/jpeg, image/webp, image/gif">
+              <div class="admin-row-actions">
+                <button type="submit" class="admin-save-btn">SAVE CHANGES</button>
+              </div>
+            </form>
+
+            <form method="POST" action="{{ url_for('delete_product', product_id=product.id) }}"
+                  onsubmit="return confirm('Delete {{ product.name }}? This cannot be undone.');">
+              <button type="submit" class="admin-delete-btn">DELETE</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

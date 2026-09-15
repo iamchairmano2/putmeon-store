@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ brand_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <header class="topbar">
+    <a href="{{ url_for('index') }}" class="wordmark">
+      <span class="wordmark-bars"></span>
+      PUT ME ON
+      <span class="wordmark-bars"></span>
+    </a>
+    <button class="cart-toggle" id="cartToggle" aria-label="Open cart">
+      BAG <span class="cart-count" id="cartCount">0</span>
+    </button>
+  </header>
+
+  <section class="hero">
+    <h1>EARN YOUR<br>SPOTLIGHT.</h1>
+    <p class="hero-sub">Fits that speak before you do. New pieces, real prices, straight to your WhatsApp.</p>
+  </section>
+
+  <main class="catalog">
+    {% if products|length == 0 %}
+      <div class="empty-state">
+        <p>The rack is empty right now.</p>
+        <p class="empty-sub">The admin can add the first piece from the <a href="{{ url_for('admin_login') }}">admin page</a>.</p>
+      </div>
+    {% else %}
+      <div class="product-grid">
+        {% for product in products %}
+        <article class="product-card"
+                  data-id="{{ product.id }}"
+                  data-name="{{ product.name }}"
+                  data-price="{{ product.price }}">
+          <div class="product-image">
+            {% if product.image_url %}
+              <img src="{{ product.image_url }}" alt="{{ product.name }}">
+            {% else %}
+              <div class="no-image">NO IMAGE</div>
+            {% endif %}
+          </div>
+          <div class="product-info">
+            <h2>{{ product.name }}</h2>
+            {% if product.description %}
+              <p class="product-desc">{{ product.description }}</p>
+            {% endif %}
+            <div class="product-footer">
+              <span class="price">GHS {{ "%.2f"|format(product.price) }}</span>
+              <button class="add-to-cart">ADD TO BAG</button>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; {{ products[0].created_at[:4] if products else '2026' }} {{ brand_name }}. Shipped from Accra.</p>
+  </footer>
+
+  <!-- Cart drawer -->
+  <div class="cart-overlay" id="cartOverlay"></div>
+  <aside class="cart-drawer" id="cartDrawer">
+    <div class="cart-header">
+      <h2>YOUR BAG</h2>
+      <button class="cart-close" id="cartClose" aria-label="Close cart">&times;</button>
+    </div>
+    <div class="cart-items" id="cartItems">
+      <p class="cart-empty" id="cartEmptyMsg">Your bag is empty.</p>
+    </div>
+    <div class="cart-summary">
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span id="cartTotal">GHS 0.00</span>
+      </div>
+      <button class="checkout-btn" id="checkoutBtn">CHECKOUT ON WHATSAPP</button>
+      <p class="checkout-note">You'll be sent to WhatsApp to confirm your order and delivery details.</p>
+    </div>
+  </aside>
+
+  <script>
+    const WHATSAPP_NUMBER = "{{ whatsapp_number }}";
+    const BRAND_NAME = "{{ brand_name }}";
+  </script>
+  <script src="{{ url_for('static', filename='js/cart.js') }}"></script>
+</body>
+</html>
