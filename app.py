@@ -36,6 +36,14 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Postgres support. If a DATABASE_URL environment variable is set (Render
+# sets this automatically once you attach a PostgreSQL database), the app
+# uses Postgres so your product data survives redeploys. If DATABASE_URL
+# is NOT set (e.g. running on your own laptop without a database), the app
+# falls back to a local SQLite file, just like before.
+import psycopg2
+import psycopg2.extras
+
 # Optional: load a local .env file if python-dotenv is installed and the
 # file exists. This only matters for running on your own computer — on
 # Render you'll set these as real environment variables instead.
@@ -67,6 +75,13 @@ BRAND_NAME = "PUT ME ON"
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE = os.path.join(BASE_DIR, "database.db")
 
+# Render (and most hosts) provide the Postgres connection string via
+# DATABASE_URL. If it's present, we use Postgres. Otherwise we fall back
+# to the local SQLite file above, which is fine for testing on your laptop
+# but NOT safe on Render's free tier (that disk gets wiped on redeploy).
+DATABASE_URL = os.environ.get("DATABASE_URL")
+USE_POSTGRES = bool(DATABASE_URL)
+
 app = Flask(__name__)
 app.secret_key = "change-this-secret-key-to-something-random"  # CHANGE THIS
 
@@ -83,27 +98,77 @@ cloudinary.config(
 )
 
 
+class DBConnection:
+    """
+    A tiny wrapper so the rest of the app can keep calling
+    conn.execute(sql, params).fetchone() / .fetchall() / conn.commit() /
+    conn.close() exactly like it did with plain sqlite3 — whether the real
+    connection underneath is SQLite (local dev) or Postgres (Render).
+
+    Query strings in the rest of the file use "?" placeholders (SQLite
+    style). When running on Postgres, those get swapped to "%s"
+    automatically here.
+    """
+
+    def __init__(self):
+        if USE_POSTGRES:
+            self.conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+            self.cursor = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            self.conn = sqlite3.connect(DATABASE)
+            self.conn.row_factory = sqlite3.Row
+            self.cursor = self.conn.cursor()
+
+    def execute(self, sql, params=()):
+        if USE_POSTGRES:
+            sql = sql.replace("?", "%s")
+        self.cursor.execute(sql, params)
+        return self.cursor
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        try:
+            self.cursor.close()
+        finally:
+            self.conn.close()
+
+
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return DBConnection()
 
 
 def init_db():
     conn = get_db()
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL,
-            image_url TEXT,
-            image_public_id TEXT,
-            description TEXT,
-            created_at TEXT NOT NULL
+    if USE_POSTGRES:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                price REAL NOT NULL,
+                image_url TEXT,
+                image_public_id TEXT,
+                description TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
+    else:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                price REAL NOT NULL,
+                image_url TEXT,
+                image_public_id TEXT,
+                description TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
     conn.commit()
     conn.close()
 
